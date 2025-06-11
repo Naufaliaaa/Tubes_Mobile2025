@@ -5,6 +5,5 @@ data class FullPost(
     val title: String,
     val content: String,
     val author: String,
-    val date: String,
-    val bool: Boolean
+    val date: String
 )

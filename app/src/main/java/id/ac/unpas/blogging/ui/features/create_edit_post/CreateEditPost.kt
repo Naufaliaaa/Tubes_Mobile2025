@@ -7,97 +7,116 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import id.ac.unpas.blogging.ui.theme.BloggingTheme
+import id.ac.unpas.blogging.viewmodel.CreateEditPostViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateEditPostScreen(
-    initialTitle: String = "",
-    initialContent: String = "",
-    isEditMode: Boolean,
-    onSavePost: (title: String, content: String) -> Unit,
-    onNavigateBack: () -> Unit
+    createEditPostViewModel: CreateEditPostViewModel = viewModel(),
+    onNavigateBack: () -> Unit,
+    onPostSavedOrUpdated: (postId: String?) -> Unit
 ) {
-    var title by remember { mutableStateOf(initialTitle) }
-    var content by remember { mutableStateOf(initialContent) }
+    val uiState by createEditPostViewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    LaunchedEffect(uiState.postSavedOrUpdated) {
+        if (uiState.postSavedOrUpdated) {
+            keyboardController?.hide()
+            val savedPostId = if (uiState.isEditMode) createEditPostViewModel.uiState.value.title.hashCode().toString() else null // Ini cuma ID dummy sementara, idealnya dari respons backend/repo
+            onPostSavedOrUpdated(savedPostId)
+            createEditPostViewModel.navigationCompleted()
+        }
+    }
+
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let { error ->
+            keyboardController?.hide()
+            snackbarHostState.showSnackbar(message = error, duration = SnackbarDuration.Short)
+            createEditPostViewModel.errorShown()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(if (isEditMode) "Edit Postingan" else "Buat Postingan Baru") },
+                title = { Text(uiState.pageTitle) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = {
+                        keyboardController?.hide()
+                        onNavigateBack()
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali")
                     }
                 }
             )
         }
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .padding(innerPadding)
-                .padding(16.dp)
-                .fillMaxSize()
-        ) {
-            OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                label = { Text("Judul Postingan") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                textStyle = MaterialTheme.typography.titleLarge
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = content,
-                onValueChange = { content = it },
-                label = { Text("Isi Postingan...") },
+        if (uiState.isLoading && uiState.title.isBlank() && uiState.content.isBlank() && uiState.isEditMode) {
+            Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        } else {
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                textStyle = MaterialTheme.typography.bodyLarge
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Button(
-                onClick = {
-                    if (title.isNotBlank() && content.isNotBlank()) {
-                        onSavePost(title, content)
-                    }
-                },
-                modifier = Modifier.fillMaxWidth().height(48.dp)
+                    .padding(innerPadding)
+                    .padding(16.dp)
+                    .fillMaxSize()
             ) {
-                Text(if (isEditMode) "SIMPAN PERUBAHAN" else "PUBLIKASIKAN")
+                OutlinedTextField(
+                    value = uiState.title,
+                    onValueChange = { createEditPostViewModel.updateTitle(it) },
+                    label = { Text("Judul Postingan") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.titleLarge,
+                    isError = uiState.error != null && uiState.title.isBlank()
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = uiState.content,
+                    onValueChange = { createEditPostViewModel.updateContent(it) },
+                    label = { Text("Isi Postingan...") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    textStyle = MaterialTheme.typography.bodyLarge,
+                    isError = uiState.error != null && uiState.content.isBlank()
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+
+                if (uiState.isLoading) {
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            keyboardController?.hide()
+                            createEditPostViewModel.saveOrUpdatePost()
+                        },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        enabled = !uiState.isLoading
+                    ) {
+                        Text(if (uiState.isEditMode) "SIMPAN PERUBAHAN" else "PUBLIKASIKAN")
+                    }
+                }
             }
         }
     }
 }
 
-@Preview(showBackground = true, name = "Create Mode")
+@Preview(showBackground = true, name = "Create Post Preview")
 @Composable
 fun CreatePostScreenPreview() {
     BloggingTheme {
-        CreateEditPostScreen(
-            isEditMode = false,
-            onSavePost = { _, _ -> },
-            onNavigateBack = {}
-        )
-    }
-}
-
-@Preview(showBackground = true, name = "Edit Mode")
-@Composable
-fun EditPostScreenPreview() {
-    BloggingTheme {
-        CreateEditPostScreen(
-            initialTitle = "Judul Lama yang Diedit",
-            initialContent = "Ini adalah konten lama yang mau diperbarui...",
-            isEditMode = true,
-            onSavePost = { _, _ -> },
-            onNavigateBack = {}
-        )
+        CreateEditPostScreen(onNavigateBack = {}, onPostSavedOrUpdated = {})
     }
 }
