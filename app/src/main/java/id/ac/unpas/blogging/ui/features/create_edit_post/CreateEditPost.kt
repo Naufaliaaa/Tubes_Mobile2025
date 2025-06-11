@@ -1,6 +1,5 @@
 package id.ac.unpas.blogging.ui.features.create_edit_post
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -8,16 +7,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import id.ac.unpas.blogging.ui.theme.BloggingTheme
 import id.ac.unpas.blogging.viewmodel.CreateEditPostViewModel
-import androidx.compose.material3.TextFieldDefaults
-import id.ac.unpas.blogging.ui.theme.White
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,19 +25,21 @@ fun CreateEditPostScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val keyboardController = LocalSoftwareKeyboardController.current
 
+    // Navigasi setelah posting berhasil
     LaunchedEffect(uiState.postSavedOrUpdated) {
         if (uiState.postSavedOrUpdated) {
             keyboardController?.hide()
-            val savedPostId = if (uiState.isEditMode) createEditPostViewModel.uiState.value.title.hashCode().toString() else null // Ini cuma ID dummy sementara, idealnya dari respons backend/repo
+            val savedPostId = if (uiState.isEditMode) createEditPostViewModel.uiState.value.title.hashCode().toString() else null
             onPostSavedOrUpdated(savedPostId)
             createEditPostViewModel.navigationCompleted()
         }
     }
 
+    // Menampilkan snackbar saat error
     LaunchedEffect(uiState.error) {
-        uiState.error?.let { error ->
+        uiState.error?.let {
             keyboardController?.hide()
-            snackbarHostState.showSnackbar(message = error, duration = SnackbarDuration.Short)
+            snackbarHostState.showSnackbar(it, duration = SnackbarDuration.Short)
             createEditPostViewModel.errorShown()
         }
     }
@@ -63,16 +60,21 @@ fun CreateEditPostScreen(
             )
         }
     ) { innerPadding ->
-        if (uiState.isLoading && uiState.title.isBlank() && uiState.content.isBlank() && uiState.isEditMode) {
-            Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+        if (uiState.isLoading && uiState.isEditMode && uiState.title.isBlank() && uiState.content.isBlank()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
                 CircularProgressIndicator()
             }
         } else {
             Column(
                 modifier = Modifier
+                    .fillMaxSize()
                     .padding(innerPadding)
                     .padding(16.dp)
-                    .fillMaxSize()
             ) {
                 OutlinedTextField(
                     value = uiState.title,
@@ -83,58 +85,8 @@ fun CreateEditPostScreen(
                     textStyle = MaterialTheme.typography.titleLarge,
                     isError = uiState.error != null && uiState.title.isBlank()
                 )
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Dropdown State
-                val categories = listOf("Teknologi", "Kesehatan", "Gaya Hidup", "Pendidikan")
-                var expanded by remember { mutableStateOf(false) }
-                var selectedCategory by remember { mutableStateOf(categories.first()) }
-
-                ExposedDropdownMenuBox(
-                    expanded = expanded,
-                    onExpandedChange = { expanded = !expanded }
-                ) {
-                    TextField(
-                        value = selectedCategory,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Kategori Postingan", color = Color.Black) },
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded)
-                        },
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.LightGray,
-                            unfocusedContainerColor =  Color.LightGray ,
-                            focusedTextColor = Color.Black,
-                            unfocusedTextColor = Color.Black,
-                            focusedLabelColor = Color.DarkGray,
-                            unfocusedLabelColor = Color.Gray,
-                            focusedIndicatorColor = Color.LightGray,
-                            unfocusedIndicatorColor = Color.LightGray
-                        ),
-                        modifier = Modifier
-                            .menuAnchor()
-                            .fillMaxWidth()
-                    )
-
-                    ExposedDropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
-                    ) {
-                        categories.forEach { category ->
-                            DropdownMenuItem(
-                                text = { Text(category, color = Color.Black) },
-                                onClick = {
-                                    selectedCategory = category
-                                    expanded = false
-                                }
-                            )
-                        }
-                    }
-                }
 
                 Spacer(modifier = Modifier.height(16.dp))
-
 
                 OutlinedTextField(
                     value = uiState.content,
@@ -146,10 +98,14 @@ fun CreateEditPostScreen(
                     textStyle = MaterialTheme.typography.bodyLarge,
                     isError = uiState.error != null && uiState.content.isBlank()
                 )
+
                 Spacer(modifier = Modifier.height(24.dp))
 
                 if (uiState.isLoading) {
-                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
                         CircularProgressIndicator()
                     }
                 } else {
@@ -158,8 +114,9 @@ fun CreateEditPostScreen(
                             keyboardController?.hide()
                             createEditPostViewModel.saveOrUpdatePost()
                         },
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
-                        enabled = !uiState.isLoading
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
                     ) {
                         Text(if (uiState.isEditMode) "SIMPAN PERUBAHAN" else "PUBLIKASIKAN")
                     }

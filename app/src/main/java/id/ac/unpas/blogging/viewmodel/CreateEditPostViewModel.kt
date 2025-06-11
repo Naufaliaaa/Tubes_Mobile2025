@@ -36,25 +36,15 @@ class CreateEditPostViewModel(
                 isLoading = true
             )
             loadPostDataForEdit(postId)
-        } else {
-            _uiState.value = _uiState.value.copy(
-                isEditMode = false,
-                pageTitle = "Buat Postingan Baru",
-                isLoading = false
-            )
         }
     }
 
     private fun loadPostDataForEdit(currentPostId: String) {
         viewModelScope.launch {
             delay(500)
-
-            val dummyExistingTitle = "Judul Post $currentPostId (Dari ViewModel)"
-            val dummyExistingContent = "Ini adalah konten lama dari post $currentPostId yang dimuat oleh ViewModel untuk diedit."
-
             _uiState.value = _uiState.value.copy(
-                title = dummyExistingTitle,
-                content = dummyExistingContent,
+                title = "Judul Post $currentPostId (Dari ViewModel)",
+                content = "Ini adalah konten lama dari post $currentPostId yang dimuat oleh ViewModel untuk diedit.",
                 isLoading = false
             )
         }
@@ -69,21 +59,20 @@ class CreateEditPostViewModel(
     }
 
     fun saveOrUpdatePost() {
-        if (_uiState.value.title.isBlank() || _uiState.value.content.isBlank()) {
-            _uiState.value = _uiState.value.copy(error = "Judul dan Isi postingan tidak boleh kosong.")
+        val currentState = _uiState.value
+        if (currentState.title.isBlank() || currentState.content.isBlank()) {
+            _uiState.value = currentState.copy(error = "Judul dan Isi postingan tidak boleh kosong.")
             return
         }
 
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.value = currentState.copy(isLoading = true, error = null)
             delay(2000)
 
-            if (_uiState.value.isEditMode) {
-                println("ViewModel: Mengupdate post ID $postId dengan judul '${_uiState.value.title}'")
-            } else {
-                println("ViewModel: Menyimpan post baru dengan judul '${_uiState.value.title}'")
-            }
-            _uiState.value = _uiState.value.copy(isLoading = false, postSavedOrUpdated = true)
+            _uiState.value = _uiState.value.copy(
+                isLoading = false,
+                postSavedOrUpdated = true
+            )
         }
     }
 

@@ -26,10 +26,10 @@ class PostDetailViewModel(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
+    private val postId: String = checkNotNull(savedStateHandle["postId"])
+
     private val _uiState = MutableStateFlow(PostDetailUiState())
     val uiState: StateFlow<PostDetailUiState> = _uiState.asStateFlow()
-
-    private val postId: String = checkNotNull(savedStateHandle["postId"])
 
     init {
         loadContent()
@@ -38,57 +38,61 @@ class PostDetailViewModel(
     private fun loadContent() {
         viewModelScope.launch {
             _uiState.value = PostDetailUiState(isLoading = true)
+
             delay(1000)
 
-            val dummyFullPost = FullPost(
+            val dummyPost = FullPost(
                 id = postId,
                 title = "Detail Postingan ID: $postId",
                 content = "Ini adalah isi lengkap dari postingan dengan ID $postId. Konten ini diambil dari ViewModel. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
                 author = "Penulis ViewModel $postId",
-                date = " 30 Mei 2025"
+                date = "30 Mei 2025"
             )
+
             val dummyComments = listOf(
                 Comment("c1_vm", postId, "User A (VM)", "Komentar dari ViewModel untuk post $postId.", "30 Mei 2025"),
                 Comment("c2_vm", postId, "User B (VM)", "Mantap, infonya berguna!", "30 Mei 2025")
             )
 
-            val isOwner = postId == "1"
-
-            _uiState.value = _uiState.value.copy(
-                post = dummyFullPost,
+            _uiState.value = PostDetailUiState(
+                post = dummyPost,
                 comments = dummyComments,
                 isLoading = false,
-                isUserOwner = isOwner
+                isUserOwner = postId == "1"
             )
         }
     }
 
     fun updateNewCommentText(text: String) {
-        _uiState.value = _uiState.value.copy(newCommentText = text, commentPostError = null)
+        _uiState.value = _uiState.value.copy(
+            newCommentText = text,
+            commentPostError = null
+        )
     }
 
     fun postComment() {
-        if (_uiState.value.newCommentText.isBlank()) {
-            _uiState.value = _uiState.value.copy(commentPostError = "Komentar tidak boleh kosong.")
+        val currentState = _uiState.value
+
+        if (currentState.newCommentText.isBlank()) {
+            _uiState.value = currentState.copy(commentPostError = "Komentar tidak boleh kosong.")
             return
         }
 
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isCommentPosting = true, commentPostError = null)
+            _uiState.value = currentState.copy(isCommentPosting = true, commentPostError = null)
+
             delay(1500)
 
             val newComment = Comment(
                 id = "c_new_${System.currentTimeMillis()}",
                 postId = postId,
                 author = "User Sekarang (VM)",
-                text = _uiState.value.newCommentText,
+                text = currentState.newCommentText,
                 date = "Baru saja"
             )
 
-            val updatedComments = _uiState.value.comments + newComment
-
-            _uiState.value = _uiState.value.copy(
-                comments = updatedComments,
+            _uiState.value = currentState.copy(
+                comments = currentState.comments + newComment,
                 newCommentText = "",
                 isCommentPosting = false
             )

@@ -1,7 +1,5 @@
 package id.ac.unpas.blogging.viewmodel
 
-
-
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -32,13 +30,15 @@ class LoginViewModel : ViewModel() {
 
     fun updateEmailOrUsername(input: String) {
         emailOrUsername = input
-        if (_uiState.value.loginError != null) {
-            _uiState.value = _uiState.value.copy(loginError = null)
-        }
+        clearErrorIfAny()
     }
 
     fun updatePassword(input: String) {
         password = input
+        clearErrorIfAny()
+    }
+
+    private fun clearErrorIfAny() {
         if (_uiState.value.loginError != null) {
             _uiState.value = _uiState.value.copy(loginError = null)
         }
@@ -46,27 +46,34 @@ class LoginViewModel : ViewModel() {
 
     fun attemptLogin() {
         if (emailOrUsername.isBlank() || password.isBlank()) {
-            _uiState.value = LoginUiState(loginError = "Email/Username dan Password tidak boleh kosong!")
+            _uiState.value = _uiState.value.copy(loginError = "Email/Username dan Password tidak boleh kosong!")
             return
         }
 
         viewModelScope.launch {
-            _uiState.value = LoginUiState(isLoading = true, loginError = null)
+            _uiState.value = _uiState.value.copy(isLoading = true, loginError = null)
+
             delay(2000)
 
-            if (emailOrUsername == "user" && password == "pass") {
-                _uiState.value = LoginUiState(isLoading = false, loginSuccess = true)
-            } else {
-                _uiState.value = LoginUiState(isLoading = false, loginError = "Email/Username atau Password salah.")
-            }
+            val isSuccess = emailOrUsername == "user" && password == "pass"
+
+            _uiState.value = _uiState.value.copy(
+                isLoading = false,
+                loginSuccess = isSuccess,
+                loginError = if (!isSuccess) "Email/Username atau Password salah." else null
+            )
         }
     }
 
     fun errorShown() {
-        _uiState.value = _uiState.value.copy(loginError = null)
+        clearErrorIfAny()
     }
 
     fun navigatedToHome() {
-        _uiState.value = LoginUiState(loginSuccess = false)
+        resetState()
+    }
+
+    private fun resetState() {
+        _uiState.value = LoginUiState()
     }
 }
